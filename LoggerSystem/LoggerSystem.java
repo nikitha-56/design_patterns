@@ -1,3 +1,4 @@
+package LoggerSystem;
 import java.util.*;
 
 class LoggerSystem{
@@ -43,22 +44,22 @@ class LoggerSystem{
     }
 
     static class LoggerManager{
-        private static LoggerManager instance;
-        private  Logger logger;
+       private static LoggerManager instance;
+       private Logger logger;
 
-        private LoggerManager(Logger logger){
-            this.logger=logger;
+      private LoggerManager(Logger logger){
+        this.logger=logger;
+       }
+       public static LoggerManager getInstance(Logger logger){
+        if(instance==null){
+            instance=new LoggerManager(logger);
         }
-        public static LoggerManager getInstance(Logger logger){
-            if(instance==null){
-                instance=new LoggerManager(logger);
-            }
-            return instance;
-        }
+        return instance;
+       }
 
-        public void log(String message){
-            logger.login(message);
-        }
+       public void log(String message){
+        logger.login(message);
+       }
     }
 
 
@@ -66,8 +67,6 @@ class LoggerSystem{
            Logger l1=LoggerFactory.generateLogger("file");
            LoggerManager manager=LoggerManager.getInstance(l1);
            manager.log("user logged in");
-
-
 
       }
 }
