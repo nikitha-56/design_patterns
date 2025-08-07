@@ -71,16 +71,18 @@ import java.util.*;
     class AtmManager{
         private static AtmManager instance;
         HashMap<String,User> users;
+        private  Logger logger;
        private HashMap<User,List<Transaction>> transactions;
        List<Observer> observers;
-      private  AtmManager(){
+      private  AtmManager(Logger logger){
             users=new HashMap<>();
               transactions=new HashMap<>();
               observers=new ArrayList<>();
+              this.logger=logger;
         }
-        public static AtmManager getInstance(){
+        public static AtmManager getInstance(Logger logger){
             if(instance==null){
-                instance=new AtmManager();
+                instance=new AtmManager(logger);
             }
             return instance;
         }
@@ -110,7 +112,7 @@ import java.util.*;
             if(users.containsKey(u.getName())){
                 int userbal=u.getAmt();
             if(withdrawAmt>0 && userbal>withdrawAmt){
-                System.out.println("you Withdrawn "+ withdrawAmt+" rupees");
+                logger.log("user "+ u.getName() +" withdraw $ "+ withdrawAmt);
                 int res=userbal-withdrawAmt;
                 System.out.println("Balance amt is "+res);
                  u.decreaseAmt(withdrawAmt);
@@ -128,7 +130,7 @@ import java.util.*;
 
         public void depositAmt(User u,int depositAmt){
             if(users.containsKey(u.getName())){
-                System.out.println("Deposit Successfull "+ depositAmt);
+                logger.log("user "+ u.getName() +" deposited $ "+ depositAmt);
                  u.addAmt(depositAmt);
                 transactions.computeIfAbsent(u, k->new ArrayList<>()).add(new Transaction(Transaction.Type.DEPOSIT, depositAmt));
                 notifyAll(depositAmt,Transaction.Type.DEPOSIT, u);
@@ -172,9 +174,21 @@ import java.util.*;
             System.out.println(" Transaction type- "+type + ":"+  u.getName() +" your "+ type+" is successfull of amt : "+ amt );
         }
     }
+
+     interface Logger{
+        void log(String messsage);
+    }
+
+     class ConsoleLogger implements Logger{
+        @Override
+     public void log(String message){
+         System.out.println("[LOG]" + message);
+        }
+    }
     public class atm {
       public static Scanner sc=new Scanner(System.in);
-       AtmManager manager=AtmManager.getInstance();
+       Logger logger=new ConsoleLogger();
+       AtmManager manager=AtmManager.getInstance(logger);
         public static User collectUserDetail(){
             System.out.println("Enter the user details :");
             System.out.print("Enter your name :");
