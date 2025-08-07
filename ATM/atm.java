@@ -30,7 +30,7 @@ import java.util.*;
             amt+=amtin;
         }
 
-        public void decreaseAmt(float wamt){
+        public void decreaseAmt(int wamt){
             amt-=wamt;
         }
 
@@ -62,7 +62,7 @@ import java.util.*;
 
         @Override
          public String toString(){
-            return type + " of $  " + amt+ " at"+ timestamp;
+            return type + " of $ " + amt+ " at"+ timestamp;
          }
 
 
@@ -70,11 +70,13 @@ import java.util.*;
 
     class AtmManager{
         private static AtmManager instance;
-        ArrayList<User> users;
+        HashMap<String,User> users;
        private HashMap<User,List<Transaction>> transactions;
+       List<Observer> observers;
       private  AtmManager(){
-            users=new ArrayList<>();
+            users=new HashMap<>();
               transactions=new HashMap<>();
+              observers=new ArrayList<>();
         }
         public static AtmManager getInstance(){
             if(instance==null){
@@ -84,11 +86,13 @@ import java.util.*;
         }
 
         public void addUser(User u){
-            users.add(u);
+          if(!users.containsKey(u.getName())) {
+            users.put(u.getName(),u);
         }
+    }
 
         public void removeUser(User u){
-            users.remove(u);
+            users.remove(u.getName());
         }
 
         public void allTransactions(User u){
@@ -102,15 +106,17 @@ import java.util.*;
             }
         }
   
-        public void  withdraw(User u,float withdrawAmt){
-            if(users.contains(u)){
-                float userbal=u.getAmt();
+        public void  withdraw(User u,int withdrawAmt){
+            if(users.containsKey(u.getName())){
+                int userbal=u.getAmt();
             if(withdrawAmt>0 && userbal>withdrawAmt){
                 System.out.println("you Withdrawn "+ withdrawAmt+" rupees");
-                float res=userbal-withdrawAmt;
+                int res=userbal-withdrawAmt;
                 System.out.println("Balance amt is "+res);
-                  transactions.computeIfAbsent(u,k->new ArrayList<>()).add(new Transaction(Transaction.Type.WITHDRAWN, (int) withdrawAmt));
-                   u.decreaseAmt(withdrawAmt);
+                 u.decreaseAmt(withdrawAmt);
+                  transactions.computeIfAbsent(u,k->new ArrayList<>()).add(new Transaction(Transaction.Type.WITHDRAWN, withdrawAmt));
+                  notifyAll(withdrawAmt,Transaction.Type.WITHDRAWN, u);
+                  return;
             }
             else{
                 System.out.println("Insufficient balance ..Try again");
@@ -121,10 +127,11 @@ import java.util.*;
         }
 
         public void depositAmt(User u,int depositAmt){
-            if(users.contains(u)){
+            if(users.containsKey(u.getName())){
                 System.out.println("Deposit Successfull "+ depositAmt);
+                 u.addAmt(depositAmt);
                 transactions.computeIfAbsent(u, k->new ArrayList<>()).add(new Transaction(Transaction.Type.DEPOSIT, depositAmt));
-                u.addAmt(depositAmt);
+                notifyAll(depositAmt,Transaction.Type.DEPOSIT, u);
                 return;
             }
             else{
@@ -136,9 +143,38 @@ import java.util.*;
            System.out.println("Your current Balance is : "+ u.getAmt());
         }
 
+        public void addObserver(Observer o){
+            observers.add(o);
+        }
+
+         public void removeObserver(Observer o){
+            observers.remove(o);
+        }
+
+        public void notifyAll(int amt,Transaction.Type type,User u){
+            for(Observer o:observers){
+                o.notify(amt,type,u);
+            }
+        }
+    }
+    interface Observer{
+        void notify(int amt,Transaction.Type type,User u);
+    }
+
+    class NotifyToAtmManager implements Observer{
+        public void notify(int amt,Transaction.Type type,User u){
+            System.out.println(" Transaction type- "+type +  ": " +u.getName() + type +" the  amt of " +amt);
+        }
+    }
+
+    class NotifyToAtmUser implements Observer{
+        public  void notify(int amt,Transaction.Type type,User u){
+            System.out.println(" Transaction type- "+type + ":"+  u.getName() +" your "+ type+" is successfull of amt : "+ amt );
+        }
     }
     public class atm {
       public static Scanner sc=new Scanner(System.in);
+       AtmManager manager=AtmManager.getInstance();
         public static User collectUserDetail(){
             System.out.println("Enter the user details :");
             System.out.print("Enter your name :");
@@ -149,56 +185,52 @@ import java.util.*;
             long cardNo=sc.nextLong();
             return new User(name, bname, cardNo);
         }
+
+        public User findUserByName(String name){
+           return manager.users.get(name);
+        }
           
 
     public static void main(String[] args) {
-        AtmManager manager=AtmManager.getInstance();
         atm atm1=new atm();
-        System.out.println("Select the option : 1.AddUser 2.Withdraw money 3 .Deposit money 4.check balance 5.check all transcations exitt");
+        Observer o1=new NotifyToAtmUser();
+         Observer o2=new NotifyToAtmManager();
+         atm1.manager.addObserver(o1);
+         atm1.manager.addObserver(o2);
         while(true){
+     System.out.println("Select the option : 1.AddUser 2.Withdraw money 3 .Deposit money 4.check balance 5.check all transcations  6.exitt");
         System.out.print("select the option :");
         int n=sc.nextInt();
         switch(n){
             case 1:
                   User u=atm.collectUserDetail();
-                  manager.addUser(u);
+                  atm1.manager.addUser(u);
                   break;
             case 2:
                   System.out.print("Enter your user name");
                   String name=sc.next();
-                  User foundUser=null;
-                  for(User us:manager.users){
-                     if(us.getName().equalsIgnoreCase(name)){
-                        foundUser=us;
-                        break;
-                     }
-                  }
-                  if(foundUser!=null){
-                     System.out.print("Enter the amt you want to withdraw :");
-                  int amt=sc.nextInt();
-                      manager.withdraw(foundUser, amt);
-                  }
-                  else{
-                       System.out.println("User not found");
-                  }
-                  break;
-
+                 User user=atm1.findUserByName(name);
+                 if(user!=null){
+                    System.out.print("Enter the amt to withdraw :");
+                    int amtToWithdraw=sc.nextInt();
+                    atm1.manager.withdraw(user, amtToWithdraw);
+                    break;
+                 }
+                 else{
+                    System.out.println("User not found");
+                 }
+                 break;
+                
             case 3:
                   System.out.print("Enter your user name");
                   String named=sc.next();
-                  User foundUserq=null;
-                  for(User us:manager.users){
-                     if(us.getName().equalsIgnoreCase(named)){
-                        foundUserq=us;
-                        break;
-                     }
-                  }
-                  if(foundUserq!=null){
+                  User user1=atm1.findUserByName(named);
+                 if(user1!=null){
                      System.out.print("Enter the amt you want to deposit :");
-                  int amt=sc.nextInt();
-                      manager.depositAmt(foundUserq, amt);
-                      break;
-                  }
+                       int amt=sc.nextInt();
+                    atm1.manager.depositAmt(user1, amt);
+                   break;
+                 } 
                   else{
                        System.out.println("User not found");
                   }
@@ -206,15 +238,9 @@ import java.util.*;
            case 4:
                        System.out.print("Enter your user name");
                       String username=sc.next();
-                      User uname=null;
-                     for(User un:manager.users){
-                            if(un.getName().equalsIgnoreCase(username)){
-                                 uname=un;
-                                 break;
-                            }
-                     }
-                     if(uname!=null){
-                        manager.checkBalance(uname);
+                  User username1=atm1.findUserByName(username);
+                     if(username1!=null){
+                        atm1.manager.checkBalance(username1);
                         break;
                      }
                       else{
@@ -224,21 +250,16 @@ import java.util.*;
           case 5:
                    System.out.print("Enter your user name");
                       String usern=sc.next();
-                      User uname1=null;
-                     for(User un:manager.users){
-                            if(un.getName().equalsIgnoreCase(usern)){
-                                 uname1=un;
-                                 break;
-                            }
-                     }
-                     if(uname1!=null){
-                 manager.allTransactions(uname1);
-                 break;
+                      User checkUser=atm1.findUserByName(usern);
+                    if(checkUser!=null){
+                   atm1.manager.allTransactions(checkUser);
+                         break;
                      }
                      else{
                          System.out.println("User not found");
                      }
                      break;
+
            case 6: System.out.println("Exiting the program......");
                      return;
         }
